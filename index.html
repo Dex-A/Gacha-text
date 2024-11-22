@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Generator with Negative Scoring</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            font-family: 'Courier New', monospace;
+            color: white;
+        }
+
+        #text-container {
+            position: relative;
+            width: 80%;
+            height: 60%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .text-item {
+            font-size: 2vw;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
+        }
+
+        .celebration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="text-container"></div>
+    <div class="celebration" id="celebration"></div>
+    <canvas id="celebration-canvas"></canvas>
+
+    <script>
+        const textContainer = document.getElementById('text-container');
+        const celebrationDiv = document.getElementById('celebration');
+        const canvas = document.getElementById('celebration-canvas');
+        const ctx = canvas.getContext('2d');
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let textsGenerated = [];
+
+        // Function to generate random texts
+        function generateTexts() {
+            textContainer.innerHTML = ""; // Clear previous texts
+            textsGenerated = []; // Clear stored texts
+            for (let i = 0; i < 100; i++) {
+                const randomText = Array.from({ length: 6 }) // Create 6-char random text
+                    .map(() => letters[Math.floor(Math.random() * letters.length)])
+                    .join("");
+                textsGenerated.push(randomText);
+
+                // Display text on screen
+                const div = document.createElement('div');
+                div.textContent = randomText;
+                div.className = 'text-item';
+                textContainer.appendChild(div);
+            }
+        }
+
+        // Scoring rules (now with negative scores)
+        function scoreText(text) {
+            let score = 0;
+
+            // Positive rules
+            if (text.includes('X3') || text.includes('3X')) score += 10;
+            if (text.startsWith('A')) score += 5;
+            if (text.endsWith('Z')) score += 5;
+            if (/([A-Z])\1/.test(text)) score += 8; // Consecutive letters
+            if (/([0-9])\1/.test(text)) score += 8; // Consecutive numbers
+            if (/XYZ/.test(text)) score += 20;
+
+            // Negative rules
+            if (text.includes('Q0')) score -= 10; // Special "bad" sequence
+            if (/[^A-Z0-9]/.test(text)) score -= 5; // Any non-alphanumeric character
+            if (text.endsWith('0')) score -= 3;
+            if (/0{3}/.test(text)) score -= 15; // Triple zeros
+            if (text.includes('XX')) score -= 8; // "Too many Xs"
+
+            return score;
+        }
+
+        // Calculate overall rating and trigger celebration
+        function evaluateTexts() {
+            let totalScore = 0;
+            textsGenerated.forEach(text => {
+                totalScore += scoreText(text);
+            });
+
+            const stars = Math.floor(totalScore / 10) * 0.5; // 10 points = 0.5 stars
+            triggerCelebration(stars);
+        }
+
+        // Celebration effects
+        function triggerCelebration(stars) {
+            celebrationDiv.innerHTML = ""; // Clear existing effects
+            canvas.style.display = "none";
+
+            if (stars < 0) {
+                // Negative stars: display a "fail" message
+                const div = document.createElement('div');
+                div.textContent = `😞 You scored ${stars} stars! Try again!`;
+                div.style.color = 'red';
+                div.style.fontSize = '4vw';
+                celebrationDiv.appendChild(div);
+            } else if (stars === 0) {
+                // Neutral score
+                const div = document.createElement('div');
+                div.textContent = `😐 You scored ${stars} stars. Meh.`;
+                div.style.color = 'white';
+                div.style.fontSize = '4vw';
+                celebrationDiv.appendChild(div);
+            } else if (stars > 0 && stars <= 3) {
+                // Mild success
+                mildConfetti(stars);
+            } else if (stars > 3 && stars < 10) {
+                // Moderate celebration
+                moderateCelebration(stars);
+            } else if (stars >= 10) {
+                // Full-blown party
+                fullParty(stars);
+            }
+        }
+
+        // Mild confetti
+        function mildConfetti(stars) {
+            celebrationDiv.innerHTML = `🎉 You scored ${stars} stars!`;
+            celebrationDiv.style.fontSize = '4vw';
+        }
+
+        // Moderate celebration
+        function moderateCelebration(stars) {
+            celebrationDiv.innerHTML = `✨ Wow! ${stars} stars! ✨`;
+            celebrationDiv.style.fontSize = '5vw';
+            celebrationDiv.style.color = 'yellow';
+        }
+
+        // Full-blown party with canvas animation
+        function fullParty(stars) {
+            canvas.style.display = "block";
+            const particles = [];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: Math.random() * 4 - 2,
+                    vy: Math.random() * 4 - 2,
+                    size: Math.random() * 5 + 2,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                });
+                requestAnimationFrame(draw);
+            }
+
+            celebrationDiv.innerHTML = `🎆 Incredible! ${stars} stars! 🎆`;
+            celebrationDiv.style.fontSize = '6vw';
+            draw();
+        }
+
+        // Run the generator and evaluation process
+        generateTexts();
+        setTimeout(() => {
+            evaluateTexts();
+        }, 1000);
+    </script>
+</body>
+</html>
